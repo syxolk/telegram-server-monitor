@@ -145,6 +145,7 @@ def commandDisks(message):
     sendTextMessage(chat_id, text)
 
 def alarms():
+    global last_notification
     now = time.time()
 
     if config.ENABLE_NOTIFICATIONS and (now - last_notification > config.NOTIFCATION_INTERVAL):
