@@ -46,7 +46,7 @@ def processCommandMessage(message):
     elif command == "/disks":
         commandDisks(message)
     else:
-        sendTextMessage(message["chat"]["id"], "I do not know what you mean.")
+        sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command))
 
 def sendTextMessage(chat_id, text):
     r = requests.post(config.API_URL + "sendMessage", json={
@@ -109,14 +109,27 @@ def commandUsage(message):
         sendAuthMessage(chat_id)
         return
 
-    text = """Uptime: {0}
-CPU: {1} %
-RAM: {2} %
-Swap: {3} %""".format(
-    str(datetime.datetime.now() - datetime.datetime.fromtimestamp(psutil.boot_time())),
-    psutil.cpu_percent(),
-    psutil.virtual_memory().percent,
-    psutil.swap_memory().percent)
+    text = " ** USAGE **\n"
+    try:
+        text += "Uptime: {0}\n".format(
+str(datetime.datetime.now() - datetime.datetime.fromtimestamp(psutil.boot_time())))
+    except BaseException as be:
+        text += "Getting uptime failed: {0}\n".format(str(be))
+
+    try:
+        text += "CPU: {0} %\n".format(psutil.cpu_percent())
+    except BaseException as be:
+        text += "Getting CPU failed: {0}\n".format(be)
+
+    try:
+        text += "RAM: {0} %\n".format(psutil.virtual_memory().percent)
+    except BaseException as be:
+        text += "Getting RAM failed: {0}\n".format(be)
+
+    try:
+        text += "Swap: {0}".format(psutil.swap_memory().percent)
+    except BaseException as be:
+        text += "Getting Swap info failed: {0}".format(be)
 
     sendTextMessage(chat_id, text)
 
@@ -126,9 +139,12 @@ def commandUsers(message):
         sendAuthMessage(chat_id)
         return
 
-    text = ""
-    for user in psutil.users():
-        text = text + "{0}@{1} {2}\n".format(user.name, user.host, str(datetime.datetime.fromtimestamp(user.started)))
+    text = " ** USERS **\n"
+    try:
+        for user in psutil.users():
+            text += "{0}@{1} {2}\n".format(user.name, user.host, str(datetime.datetime.fromtimestamp(user.started)))
+    except BaseException as be:
+        text += "Getting user info failed: {0}".format(be)
 
     sendTextMessage(chat_id, text)
 
@@ -138,9 +154,17 @@ def commandDisks(message):
         sendAuthMessage(chat_id)
         return
 
-    text = ""
-    for dev in psutil.disk_partitions():
-        text = text + "{0} ({1}) {2} %\n".format(dev.device, dev.mountpoint, psutil.disk_usage(dev.mountpoint).percent)
+    text = " ** DISKS **\n"
+    num = 0
+    try:
+        for dev in psutil.disk_partitions():
+            num += 1
+            text += "{0} ({1}) {2} %\n".format(dev.device, dev.mountpoint, psutil.disk_usage(dev.mountpoint).percent)
+    except BaseException as be:
+        text += "Getting disk info failed: {0}".format(be)
+
+    if num == 0:
+        text += "No disks found!?"
 
     sendTextMessage(chat_id, text)
 
