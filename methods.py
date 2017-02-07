@@ -4,6 +4,7 @@ import psutil
 import config
 import persistence
 import time
+import socket
 
 last_notification = 0
 storage = persistence.Persistence()
@@ -53,6 +54,8 @@ def processCommandMessage(message):
         commandUsers(message)
     elif command == "/disks":
         commandDisks(message)
+    elif command == "/ports":
+        commandPorts(message)
     else:
         sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command))
 
@@ -106,6 +109,7 @@ Monitor your server and query usage and network information.
 /usage - CPU and Memory information
 /users - Active users
 /disks - Disk usage
+/ports - Open network ports
 
 You do not like me anymore?
 /stop - Sign off from the monitoring service
@@ -153,6 +157,34 @@ def commandUsers(message):
             text += "{0}@{1} {2}\n".format(user.name, user.host, str(datetime.datetime.fromtimestamp(user.started)))
     except BaseException as be:
         text += "Getting user info failed: {0}".format(be)
+
+    sendTextMessage(chat_id, text)
+
+def prettyPrintFamily(f):
+    # converting to string as the values are equal for all?!
+    families = { str(socket.AF_INET)   :"TCPv4"
+               , str(socket.AF_INET6)  :"TCPv6"
+               , str(socket.AF_UNIX)   :"Unix"
+               , str(socket.SOCK_DGRAM):"UDP"
+               }
+    for type in families.keys():
+        if str(f) == type: return families[type]
+    return str(f)
+
+def commandPorts(message):
+    chat_id = message["chat"]["id"]
+    if not storage.isRegisteredUser(chat_id):
+        sendAuthMessage(chat_id)
+        return
+
+    text = " ** Listening Ports **\n"
+    try:
+        for c in psutil.net_connections():
+            if c.status == "LISTEN":
+                text += "* {0} ({1})\n".format(c.laddr[1], prettyPrintFamily(c.family))
+
+    except BaseException as be:
+        text += "Getting port info failed: {0}".format(be)
 
     sendTextMessage(chat_id, text)
 
