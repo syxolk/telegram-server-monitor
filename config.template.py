@@ -25,6 +25,10 @@ NOTIFY_CPU_PERCENT = 50
 # Maximum memory percent considered to be normal
 NOTIFY_RAM_PERCENT = 50
 
+# List all disks. When set to False, python
+# tries to avoid listing "non physical devices"
+ALL_DISKS = True
+
 # DO NOT EDIT BELOW THIS LINE
 # ===========================
 API_URL = "https://api.telegram.org/bot" + TOKEN + "/"

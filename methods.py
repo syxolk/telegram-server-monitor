@@ -8,6 +8,14 @@ import time
 last_notification = 0
 storage = persistence.Persistence()
 
+# thanks to https://web.archive.org/web/20111010015624/http://blogmag.net/blog/read/38/Print_human_readable_file_size
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
+
 def processMessage(message):
     if "text" in message:
         processTextMessage(message)
@@ -157,9 +165,15 @@ def commandDisks(message):
     text = " ** DISKS **\n"
     num = 0
     try:
-        for dev in psutil.disk_partitions():
+        for dev in psutil.disk_partitions(config.ALL_DISKS):
             num += 1
-            text += "{0} ({1}) {2} %\n".format(dev.device, dev.mountpoint, psutil.disk_usage(dev.mountpoint).percent)
+            if len(dev.device) == 0: continue
+            usage = psutil.disk_usage(dev.mountpoint)
+            text += "{0} ({1}) {2} % (free: {3})\n".format(dev.device
+                , dev.mountpoint
+                , usage.percent
+                , sizeof_fmt(usage.free)
+                )
     except BaseException as be:
         text += "Getting disk info failed: {0}".format(be)
 
