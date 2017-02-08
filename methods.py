@@ -5,6 +5,7 @@ import config
 import persistence
 import time
 import socket
+import netifaces
 
 last_notification = 0
 last_ports = []
@@ -57,6 +58,10 @@ def processCommandMessage(message):
         commandDisks(message)
     elif command == "/ports":
         commandPorts(message)
+    elif command == "/ip":
+        commandIp(message, ver=6)
+    elif command == "/ip4":
+        commandIp(message, ver=4)
     else:
         sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command))
 
@@ -125,6 +130,8 @@ Monitor your server and query usage and network information.
 /users - Active users
 /disks - Disk usage
 /ports - Open network ports
+/ip    - list all IPv6 IPs
+/ip4   - list all IPv4 IPs
 
 You do not like me anymore?
 /stop - Sign off from the monitoring service
@@ -230,6 +237,38 @@ def commandDisks(message):
     if num == 0:
         text += "No disks found!?"
 
+    sendTextMessage(chat_id, text)
+
+def commandIp(message, ver):
+    chat_id = message["chat"]["id"]
+    if not storage.isRegisteredUser(chat_id):
+        sendAuthMessage(chat_id)
+        return
+
+    ifaces = netifaces.interfaces()
+    try:
+        ifaces.remove('lo')
+    except:
+        pass
+
+    text  = " ** List of IPv{0} addresses **\n".format(ver)
+    count = 0
+
+    for ips in [netifaces.ifaddresses(x) for x in ifaces]:
+        if ver == 4:
+            entry = ips.get(netifaces.AF_INET)
+        else:
+            entry = ips.get(netifaces.AF_INET6)
+        if entry is not None:
+            for ip in entry:
+                try:
+                    text += "{0}\n".format(ip["addr"])
+                    count += 1
+                except:
+                    pass
+
+    if count == 0:
+        text += "None found"
     sendTextMessage(chat_id, text)
 
 def alarms():

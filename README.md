@@ -16,12 +16,12 @@ Monitoring service writen in Python3 to be hosted on your own server.
 sudo adduser telegram --gecos "" --disabled-password
 
 # Install required packages with the package manager
-sudo apt-get install python3-psutil python3-requests
+sudo apt-get install python3-psutil python3-requests python3-netifaces
 
 # OR install Python 3 and dependecies with pip
 # use this only if you have problems with the commandline above...
 #sudo apt-get install python3 python3-pip
-#sudo python3 -m pip install requests psutil --upgrade
+#sudo python3 -m pip install requests psutil netifaces --upgrade
 ```
 
 **Download and install Telegram Server Monitor**
