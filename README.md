@@ -15,11 +15,13 @@ Monitoring service writen in Python3 to be hosted on your own server.
 # Create a special user for the bot
 sudo adduser telegram --gecos "" --disabled-password
 
-# Install Python 3 and its package manager
-sudo apt-get install python3 python3-pip
+# Install required packages with the package manager
+sudo apt-get install python3-psutil python3-requests
 
-# Install Python Requests and PSUtil Library
-sudo python3 -m pip install requests psutil --upgrade
+# OR install Python 3 and dependecies with pip
+# use this only if you have problems with the commandline above...
+#sudo apt-get install python3 python3-pip
+#sudo python3 -m pip install requests psutil --upgrade
 ```
 
 **Download and install Telegram Server Monitor**
