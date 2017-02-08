@@ -60,15 +60,29 @@ def processCommandMessage(message):
     else:
         sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command))
 
-def sendTextMessage(chat_id, text):
-    r = requests.post(config.API_URL + "sendMessage", json={
+def _sendMessage(chat_id, text, parse_mode=None):
+    j = {
         "chat_id" : chat_id,
         "text" : text
-    })
+    }
+
+    if parse_mode is not None:
+        j["parse_mode"] = parse_mode
+
+    r = requests.post(config.API_URL + "sendMessage", json=j)
 
     result = r.json()
     if not result["ok"]:
         print(result)
+
+def sendTextMessage(chat_id, text):
+    _sendMessage(chat_id, text)
+
+def sendMarkdownMessage(chat_id, text):
+    _sendMessage(chat_id, text, "Markdown")
+
+def sendHTMLMessage(chat_id, text):
+    _sendMessage(chat_id, text, "HTML")
 
 def sendAuthMessage(chat_id):
     sendTextMessage(chat_id, "Please sign in first.")
