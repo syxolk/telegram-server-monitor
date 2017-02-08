@@ -47,7 +47,7 @@ def processCommandMessage(message):
         commandStart(message, parameter)
     elif command == "/stop":
         commandStop(message)
-    elif command == "/help":
+    elif command == "/help" or command == "/usage":
         commandHelp(message)
     elif command == "/usage":
         commandUsage(message)
@@ -89,7 +89,7 @@ def commandStart(message, parameter):
         if parameter.strip() == config.PASSWORD:
             storage.registerUser(chat_id)
             sendTextMessage(chat_id, "Thanks for signing up. " +
-                "Type /help for information.")
+                "Type /help or /usage for information.")
         else:
             sendTextMessage(chat_id, "Please provide a valid password. " +
                 "Type /start <password> to sign in.")
