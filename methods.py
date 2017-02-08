@@ -6,9 +6,13 @@ import persistence
 import time
 import socket
 import netifaces
+import subprocess
+import re
 
 last_notification = 0
 last_ports = []
+last_active_services = []
+first_alarm = True #avoid first alarm due to initialization
 storage = persistence.Persistence()
 
 # thanks to https://web.archive.org/web/20111010015624/http://blogmag.net/blog/read/38/Print_human_readable_file_size
@@ -62,6 +66,8 @@ def processCommandMessage(message):
         commandIp(message, ver=6)
     elif command == "/ip4":
         commandIp(message, ver=4)
+    elif command == "/services":
+        commandServices(message)
     else:
         sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command))
 
@@ -126,12 +132,13 @@ def commandHelp(message):
     sendTextMessage(chat_id, config.NAME + """
 Monitor your server and query usage and network information.
 
-/usage - CPU and Memory information
-/users - Active users
-/disks - Disk usage
-/ports - Open network ports
-/ip    - list all IPv6 IPs
-/ip4   - list all IPv4 IPs
+/usage    - CPU and Memory information
+/users    - Active users
+/disks    - Disk usage
+/ports    - Open network ports
+/ip       - list all IPv6 IPs
+/ip4      - list all IPv4 IPs
+/services - list all system services
 
 You do not like me anymore?
 /stop - Sign off from the monitoring service
@@ -271,10 +278,52 @@ def commandIp(message, ver):
         text += "None found"
     sendTextMessage(chat_id, text)
 
+def _getServices():
+    #TBD make selection in configfile
+    serviceCMD = ["/usr/sbin/service","--status-all"]
+    serviceRE = re.compile("^ *\[ (?P<type>.) \] +(?P<service>.+)$")
+
+    with subprocess.Popen(serviceCMD, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as p:
+        lines = p.stdout.readlines() + p.stderr.readlines()
+
+    active=[]
+    inactive=[]
+    dontknow=[]
+
+    for l in lines:
+        l = l.decode("utf-8")
+        m = serviceRE.match(l)
+        if not m: continue
+        if m.group("type") == "+":
+            active.append(m.group("service"))
+        elif m.group("type") == "-":
+            inactive.append(m.group("service"))
+        else:
+            dontknow.append(m.group("service"))
+    return (active,inactive,dontknow)
+    
+def commandServices(message):
+    chat_id = message["chat"]["id"]
+    if not storage.isRegisteredUser(chat_id):
+        sendAuthMessage(chat_id)
+        return
+    
+    (active,_,dontknow) = _getServices()
+    text = " ** Active Services **\n"
+    text += "\n".join(active)
+    text += "\n ** Unknown Status **\n"
+    text += "\n".join(dontknow)
+
+    # inactive ones are usually many and not too interresting
+
+    sendTextMessage(chat_id, text)
+
 def alarms():
     global last_notification
     now = time.time()
     global last_ports
+    global last_active_services
+    global first_alarm
 
     if config.ENABLE_NOTIFICATIONS and (now - last_notification > config.NOTIFCATION_INTERVAL):
         text = "Alarm!\n"
@@ -282,8 +331,6 @@ def alarms():
 
         cpu = psutil.cpu_percent()
         ram = psutil.virtual_memory().percent
-        ports = ["{0} ({1})".format(c.laddr[1],prettyPrintFamily(c.family))
-                 for c in psutil.net_connections() if c.status == "LISTEN"]
 
         if cpu > config.NOTIFY_CPU_PERCENT:
             text += "CPU: {0} %\n".format(cpu)
@@ -292,6 +339,8 @@ def alarms():
             text += "RAM: {0} %\n".format(ram)
             should_send = True
 
+        ports = ["{0} ({1})".format(c.laddr[1],prettyPrintFamily(c.family))
+                 for c in psutil.net_connections() if c.status == "LISTEN"]
         port_diff = list(set(last_ports).symmetric_difference(ports))
         if len(port_diff) > 0:
             should_send = True
@@ -305,6 +354,23 @@ def alarms():
 
             last_ports = ports
 
+        (active,_,_) = _getServices()
+        service_diff = list(set(last_active_services).symmetric_difference(active))
+        if len(service_diff) > 0:
+            should_send = True
+
+            got_more = False
+            if len(active) > len(last_active_services):
+                got_more = True
+
+            for s in service_diff:
+                text += "{0} service: {1}\n".format("Started" if got_more else "Stopped",s)
+   
+            last_active_services = active
+
+        if first_alarm:
+            first_alarm = False
+            should_send = False
         if should_send:
             last_notification = now
             for id in storage.allUsers():
