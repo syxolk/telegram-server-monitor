@@ -7,6 +7,7 @@ import time
 import socket
 
 last_notification = 0
+last_ports = []
 storage = persistence.Persistence()
 
 # thanks to https://web.archive.org/web/20111010015624/http://blogmag.net/blog/read/38/Print_human_readable_file_size
@@ -217,6 +218,7 @@ def commandDisks(message):
 def alarms():
     global last_notification
     now = time.time()
+    global last_ports
 
     if config.ENABLE_NOTIFICATIONS and (now - last_notification > config.NOTIFCATION_INTERVAL):
         text = "Alarm!\n"
@@ -224,13 +226,28 @@ def alarms():
 
         cpu = psutil.cpu_percent()
         ram = psutil.virtual_memory().percent
+        ports = ["{0} ({1})".format(c.laddr[1],prettyPrintFamily(c.family))
+                 for c in psutil.net_connections() if c.status == "LISTEN"]
 
         if cpu > config.NOTIFY_CPU_PERCENT:
-            text = text + "CPU: {0} %\n".format(cpu)
+            text += "CPU: {0} %\n".format(cpu)
             should_send = True
         if ram > config.NOTIFY_RAM_PERCENT:
-            text = text + "RAM: {0} %\n".format(ram)
+            text += "RAM: {0} %\n".format(ram)
             should_send = True
+
+        port_diff = list(set(last_ports).symmetric_difference(ports))
+        if len(port_diff) > 0:
+            should_send = True
+
+            got_more = False
+            if len(ports) > len(last_ports):
+                got_more = True
+
+            for p in port_diff:
+                text += "{0} listening port: {1}\n".format("New" if got_more else "Closed",p)
+
+            last_ports = ports
 
         if should_send:
             last_notification = now
