@@ -168,8 +168,11 @@ def commandUsers(message):
 
     text = " ** USERS **\n"
     try:
-        for user in psutil.users():
+        users = psutil.users()
+        for user in users:
             text += "{0}@{1} {2}\n".format(user.name, user.host, str(datetime.datetime.fromtimestamp(user.started)))
+        if len(users) == 0:
+            text += "No users are currently logged in"
     except BaseException as be:
         text += "Getting user info failed: {0}".format(be)
 
