@@ -211,9 +211,14 @@ def commandPorts(message):
 
     text = " ** Listening Ports **\n"
     try:
-        for c in psutil.net_connections():
+        for c in sorted(psutil.net_connections(), key=lambda i:i.laddr[1]):
             if c.status == "LISTEN":
-                text += "* {0} ({1})\n".format(c.laddr[1], prettyPrintFamily(c.family))
+                interface = c.laddr[0]
+                if interface == "0.0.0.0":
+                    interface = "all interfaces"
+                else:
+                    interface = "only on {0}".format(interface)
+                text += "* {0} ({1}, {2})\n".format(c.laddr[1], prettyPrintFamily(c.family), interface)
 
     except BaseException as be:
         text += "Getting port info failed: {0}".format(be)
