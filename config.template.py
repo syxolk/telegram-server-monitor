@@ -15,7 +15,7 @@ TIMEOUT = 60 * 5
 
 # Initial timeout for retry after ConnectionError from the server
 # timeout will be multiplied by 2 every retry to avoid annoing behavior
-SERVER_RETRY_TIMEOUT = TIMEOUT
+SERVER_RETRY_TIMEOUT = 10
 
 # The bot will send a push message if any of the conditions succeeds
 ENABLE_NOTIFICATIONS = True
