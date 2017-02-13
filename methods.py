@@ -214,7 +214,7 @@ def commandPorts(message):
         for c in sorted(psutil.net_connections(), key=lambda i:i.laddr[1]):
             if c.status == "LISTEN":
                 interface = c.laddr[0]
-                if interface == "0.0.0.0":
+                if interface == "0.0.0.0" or interface == "::":
                     interface = "all interfaces"
                 else:
                     interface = "only on {0}".format(interface)
