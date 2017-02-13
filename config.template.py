@@ -31,7 +31,7 @@ NOTIFY_RAM_PERCENT = 50
 
 # List all disks. When set to False, python
 # tries to avoid listing "non physical devices"
-ALL_DISKS = True
+ALL_DISKS = False
 
 # DO NOT EDIT BELOW THIS LINE
 # ===========================
