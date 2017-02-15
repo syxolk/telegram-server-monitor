@@ -163,12 +163,12 @@ str(datetime.datetime.now() - datetime.datetime.fromtimestamp(psutil.boot_time()
         text += "Getting CPU failed: {0}\n".format(be)
 
     try:
-        text += "RAM: {0} %\n".format(psutil.virtual_memory().percent)
+        text += "RAM: {0} % (free: {1})\n".format(psutil.virtual_memory().percent,sizeof_fmt(psutil.virtual_memory().available))
     except BaseException as be:
         text += "Getting RAM failed: {0}\n".format(be)
 
     try:
-        text += "Swap: {0}".format(psutil.swap_memory().percent)
+        text += "Swap: {0} % (free: {1})".format(psutil.swap_memory().percent,sizeof_fmt(psutil.swap_memory().free))
     except BaseException as be:
         text += "Getting Swap info failed: {0}".format(be)
 
