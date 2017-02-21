@@ -106,6 +106,10 @@ def shutdownMessage():
     for id in storage.allUsers():
         sendTextMessage(id, "I am shutting down.")
 
+def sendToAll(text):
+    for id in storage.allUsers():
+        sendTextMessage(id, text)
+
 def commandStart(message, parameter):
     chat_id = message["chat"]["id"]
     if storage.isRegisteredUser(chat_id):

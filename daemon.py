@@ -36,7 +36,7 @@ while True:
         # TODO error handling
             print(result)
     except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as err:
-        methods.sendTextMessage("Connection Error {0}\nRetrying in {1} seconds".format(err, server_retry))
+        methods.sendToAll("Connection Error {0}\nRetrying in {1} seconds".format(err, server_retry))
         time.sleep(server_retry)
         server_retry *= 2
 
