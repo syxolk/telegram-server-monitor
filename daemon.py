@@ -25,7 +25,10 @@ while True:
         result = r.json()
 
         if result["ok"]:
+            limit = 10
             for update in result["result"]:
+                limit-=1
+                if limit <= 0: break
                 update_id = update["update_id"]
                 if update_id > last_update_id:
                     last_update_id = update_id
