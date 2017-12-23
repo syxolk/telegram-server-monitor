@@ -62,6 +62,8 @@ def processCommandMessage(message):
         commandDisks(message)
     elif command == "/ports":
         commandPorts(message)
+    elif command == "/procs" or command == "/proc":
+        commandProcesses(message)
     elif command == "/ip":
         commandIp(message, ver=6)
     elif command == "/ip4":
@@ -140,6 +142,7 @@ Monitor your server and query usage and network information.
 /users    - Active users
 /disks    - Disk usage
 /ports    - Open network ports
+/procs    - Info about processes
 /ip       - list all IPv6 IPs
 /ip4      - list all IPv4 IPs
 /services - list all system services
@@ -226,6 +229,29 @@ def commandPorts(message):
 
     except BaseException as be:
         text += "Getting port info failed: {0}".format(be)
+
+    sendTextMessage(chat_id, text)
+
+def commandProcesses(message):
+    chat_id = message["chat"]["id"]
+    if not storage.isRegisteredUser(chat_id):
+        sendAuthMessage(chat_id)
+        return
+
+    text = " ** Process info **\n"
+    try:
+        # just query once for consistency
+        procs = [ (p.num_threads(),p.pid,p.name(),p.cmdline()) for p in psutil.process_iter()]
+        max_pids = int(open("/proc/sys/kernel/pid_max").read())
+        pid_sum = sum([ p[0] for p in procs])
+        worst = sorted(procs, reverse = True)[0]
+        pid_usage = (pid_sum*100/max_pids)
+        text += "Processes: {}\n".format(len(procs))
+        text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
+        text += "Worst Process: {} ({}) - {} threads\n{}".format(worst[2], worst[1], worst[0], worst[3])
+
+    except BaseException as be:
+        text += "Getting process info failed: {0}".format(be)
 
     sendTextMessage(chat_id, text)
 
@@ -376,6 +402,16 @@ def alarms():
                 text += "{0} service: {1}\n".format("Started" if got_more else "Stopped",s)
    
             last_active_services = active
+
+        procs = [ (p.num_threads(),p.pid,p.name(),p.cmdline()) for p in psutil.process_iter()]
+        max_pids = int(open("/proc/sys/kernel/pid_max").read())
+        pid_sum = sum([ p[0] for p in procs])
+        pid_usage = (pid_sum*100/max_pids)
+        if (pid_usage > config.NOTIFY_PID_PERCENT):
+            worst = sorted(procs, reverse = True)[0]
+            text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
+            text += "Worst Process: {} ({}) - {} threads\n{}".format(worst[2], worst[1], worst[0], worst[3])
+
 
         if first_alarm:
             first_alarm = False
