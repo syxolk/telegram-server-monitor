@@ -32,6 +32,9 @@ NOTIFY_RAM_PERCENT = 50
 # Maximum pids used for all processes and threads in precent
 NOTIFY_PID_PERCENT = 50
 
+# Maximum FDs used in percent
+NOTIFY_FD_PERCENT = 50
+
 # List all disks. When set to False, python
 # tries to avoid listing "non physical devices"
 ALL_DISKS = False

@@ -246,8 +246,11 @@ def commandProcesses(message):
         pid_sum = sum([ p[0] for p in procs])
         worst = sorted(procs, reverse = True)[0]
         pid_usage = (pid_sum*100/max_pids)
+        fds = [int(n) for n in open("/proc/sys/fs/file-nr").read().strip().split('\t')]
+        fd_usage = (fds[0]*100/fds[2])
         text += "Processes: {}\n".format(len(procs))
         text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
+        text += "FDs used: {}/{} ({:.1f}%)\n".format(fds[0], fds[2], fd_usage)
         text += "Worst Process: {} ({}) - {} threads\n{}".format(worst[2], worst[1], worst[0], worst[3])
 
     except BaseException as be:
@@ -408,10 +411,16 @@ def alarms():
         pid_sum = sum([ p[0] for p in procs])
         pid_usage = (pid_sum*100/max_pids)
         if (pid_usage > config.NOTIFY_PID_PERCENT):
+            should_send = True
             worst = sorted(procs, reverse = True)[0]
             text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
             text += "Worst Process: {} ({}) - {} threads\n{}".format(worst[2], worst[1], worst[0], worst[3])
 
+        fds = [int(n) for n in open("/proc/sys/fs/file-nr").read().strip().split('\t')]
+        fd_usage = (fds[0]*100/fds[2])
+        if (fd_usage > config.NOTIFY_FD_PERCENT):
+            should_send = True
+            text += "FDs used: {}/{} ({:.1f}%)\n".format(fds[0], fds[2], fd_usage)
 
         if first_alarm:
             first_alarm = False
