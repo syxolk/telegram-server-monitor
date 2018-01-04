@@ -12,6 +12,8 @@ import re
 last_notification = 0
 last_ports = []
 last_active_services = []
+last_pid_usage = 0
+last_fd_usage = 0
 first_alarm = True #avoid first alarm due to initialization
 storage = persistence.Persistence()
 
@@ -361,6 +363,8 @@ def alarms():
     now = time.time()
     global last_ports
     global last_active_services
+    global last_pid_usage
+    global last_fd_usage
     global first_alarm
 
     if config.ENABLE_NOTIFICATIONS and (now - last_notification > config.NOTIFCATION_INTERVAL):
@@ -410,17 +414,25 @@ def alarms():
         max_pids = int(open("/proc/sys/kernel/pid_max").read())
         pid_sum = sum([ p[0] for p in procs])
         pid_usage = (pid_sum*100/max_pids)
-        if (pid_usage > config.NOTIFY_PID_PERCENT):
+        # only alert on 5% changes
+        if (pid_usage > config.NOTIFY_PID_PERCENT) and (abs(last_pid_usage - pid_usage) > 5):
             should_send = True
             worst = sorted(procs, reverse = True)[0]
             text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
             text += "Worst Process: {} ({}) - {} threads\n{}".format(worst[2], worst[1], worst[0], worst[3])
+            last_pid_usage = pid_usage
+        if (pid_usage <= config.NOTIFY_PID_PERCENT):
+            last_pid_usage = 0
 
+        # only alert on 5% changes
         fds = [int(n) for n in open("/proc/sys/fs/file-nr").read().strip().split('\t')]
         fd_usage = (fds[0]*100/fds[2])
-        if (fd_usage > config.NOTIFY_FD_PERCENT):
+        if (fd_usage > config.NOTIFY_FD_PERCENT) and (abs(last_fd_usage - fd_usage) > 5):
             should_send = True
             text += "FDs used: {}/{} ({:.1f}%)\n".format(fds[0], fds[2], fd_usage)
+            last_fd_usage = fd_usage
+        if (fd_usage <= config.NOTIFY_FD_PERCENT):
+            last_fd_usage = 0
 
         if first_alarm:
             first_alarm = False
