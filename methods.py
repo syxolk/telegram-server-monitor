@@ -410,7 +410,12 @@ def alarms():
    
             last_active_services = active
 
-        procs = [ (p.num_threads(),p.pid,p.name(),p.cmdline()) for p in psutil.process_iter()]
+        procs = []
+        for p in psutil.process_iter():
+            try:
+                procs.append((p.num_threads(),p.pid,p.name(),p.cmdline()))
+            except BaseException as be:
+                pass
         max_pids = int(open("/proc/sys/kernel/pid_max").read())
         pid_sum = sum([ p[0] for p in procs])
         pid_usage = (pid_sum*100/max_pids)
