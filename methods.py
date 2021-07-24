@@ -25,17 +25,17 @@ def sizeof_fmt(num, suffix='B'):
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
-def processMessage(message):
+def processMessage(message, console):
     if "text" in message:
-        processTextMessage(message)
+        processTextMessage(message, console)
 
-def processTextMessage(message):
+def processTextMessage(message, console):
     text = message["text"]
 
     if text.startswith("/"):
-        processCommandMessage(message)
+        processCommandMessage(message, console)
 
-def processCommandMessage(message):
+def processCommandMessage(message, console):
     text = message["text"]
 
     if " " in text:
@@ -51,91 +51,96 @@ def processCommandMessage(message):
             return
 
     if command == "/start":
-        commandStart(message, parameter)
+        commandStart(message, parameter, console)
     elif command == "/stop":
-        commandStop(message)
+        commandStop(message, console)
     elif command == "/help":
-        commandHelp(message)
+        commandHelp(message, console)
     elif command == "/usage":
-        commandUsage(message)
+        commandUsage(message, console)
     elif command == "/users":
-        commandUsers(message)
+        commandUsers(message, console)
     elif command == "/disks":
-        commandDisks(message)
+        commandDisks(message, console)
     elif command == "/ports":
-        commandPorts(message)
+        commandPorts(message, console)
     elif command == "/procs" or command == "/proc":
-        commandProcesses(message)
+        commandProcesses(message, console)
     elif command == "/ip":
-        commandIp(message, ver=6)
+        commandIp(message, 6, console)
     elif command == "/ip4":
-        commandIp(message, ver=4)
+        commandIp(message, 4, console)
     elif command == "/services":
-        commandServices(message)
+        commandServices(message, console)
     else:
-        sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command))
+        sendTextMessage(message["chat"]["id"], "I do not know what you mean by '{0}'".format(command), console)
 
-def _sendMessage(chat_id, text, parse_mode=None):
-    j = {
-        "chat_id" : chat_id,
-        "text" : text
-    }
+def _sendMessage(chat_id, text, console,parse_mode=None):
+    if console:
+        print("---- Message:")
+        print(text)
+        print("----")
+    else:
+        j = {
+            "chat_id" : chat_id,
+            "text" : text
+        }
 
-    if parse_mode is not None:
-        j["parse_mode"] = parse_mode
+        if parse_mode is not None:
+            j["parse_mode"] = parse_mode
 
-    r = requests.post(config.API_URL + "sendMessage", json=j)
+        r = requests.post(config.API_URL + "sendMessage", json=j)
 
-    result = r.json()
-    if not result["ok"]:
-        print(result)
+        result = r.json()
+        if not result["ok"]:
+            print(result)
 
-def sendTextMessage(chat_id, text):
-    _sendMessage(chat_id, text)
+def sendTextMessage(chat_id, text, console):
+    _sendMessage(chat_id, text, console)
 
-def sendMarkdownMessage(chat_id, text):
-    _sendMessage(chat_id, text, "Markdown")
+def sendMarkdownMessage(chat_id, text, console):
+    _sendMessage(chat_id, text, console, "Markdown")
 
 def sendHTMLMessage(chat_id, text):
-    _sendMessage(chat_id, text, "HTML")
+    _sendMessage(chat_id, text, console, "HTML")
 
-def sendAuthMessage(chat_id):
-    sendTextMessage(chat_id, "Please sign in first.")
+def sendAuthMessage(chat_id, console):
+    sendTextMessage(chat_id, "Please sign in first.\nType /start <password> to sign in.", console)
 
-def startupMessage():
+def startupMessage(console):
     for id in storage.allUsers():
-        sendTextMessage(id, "Hello there. I just started.")
+        sendTextMessage(id, "Hello there. I just started.", console)
 
-def shutdownMessage():
+def shutdownMessage(console):
     for id in storage.allUsers():
-        sendTextMessage(id, "I am shutting down.")
+        sendTextMessage(id, "I am shutting down.", console)
 
-def sendToAll(text):
+def sendToAll(text, console):
     for id in storage.allUsers():
-        sendTextMessage(id, text)
+        sendTextMessage(id, text, console)
 
-def commandStart(message, parameter):
+def commandStart(message, parameter, console):
     chat_id = message["chat"]["id"]
     if storage.isRegisteredUser(chat_id):
-        sendTextMessage(chat_id, "You are signed in. Thank you.")
+        sendTextMessage(chat_id, "You are signed in. Thank you.", console)
     else:
         if parameter.strip() == config.PASSWORD:
             storage.registerUser(chat_id)
             sendTextMessage(chat_id, "Thanks for signing up. " +
-                "Type /help for information.")
+                "Type /help for information.", console)
         else:
             sendTextMessage(chat_id, "Please provide a valid password. " +
-                "Type /start <password> to sign in.")
+                "Type /start <password> to sign in.", console)
 
-def commandStop(message):
+def commandStop(message, console):
     chat_id = message["chat"]["id"]
     if storage.isRegisteredUser(chat_id):
         storage.unregisterUser(chat_id)
-        sendTextMessage(chat_id, "You signed off. You will no longer receive any messages from me.")
+        sendTextMessage(chat_id, "You signed off. You will no longer receive any messages from me.", console)
     else:
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
 
-def commandHelp(message):
+def commandHelp(message, console):
     chat_id = message["chat"]["id"]
     sendTextMessage(chat_id, config.NAME + """
 Monitor your server and query usage and network information.
@@ -151,12 +156,12 @@ Monitor your server and query usage and network information.
 
 You do not like me anymore?
 /stop - Sign off from the monitoring service
-""")
+""", console)
 
-def commandUsage(message):
+def commandUsage(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
 
     text = " ** USAGE **\n"
@@ -181,12 +186,12 @@ str(datetime.datetime.now() - datetime.datetime.fromtimestamp(psutil.boot_time()
     except BaseException as be:
         text += "Getting Swap info failed: {0}".format(be)
 
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
-def commandUsers(message):
+def commandUsers(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
 
     text = " ** USERS **\n"
@@ -199,7 +204,7 @@ def commandUsers(message):
     except BaseException as be:
         text += "Getting user info failed: {0}".format(be)
 
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
 def prettyPrintFamily(f):
     # converting to string as the values are equal for all?!
@@ -212,10 +217,10 @@ def prettyPrintFamily(f):
         if str(f) == type: return families[type]
     return str(f)
 
-def commandPorts(message):
+def commandPorts(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
 
     text = " ** Listening Ports **\n"
@@ -232,12 +237,12 @@ def commandPorts(message):
     except BaseException as be:
         text += "Getting port info failed: {0}".format(be)
 
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
-def commandProcesses(message):
+def commandProcesses(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
 
     text = " ** Process info **\n"
@@ -258,12 +263,12 @@ def commandProcesses(message):
     except BaseException as be:
         text += "Getting process info failed: {0}".format(be)
 
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
-def commandDisks(message):
+def commandDisks(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
 
     text = " ** DISKS **\n"
@@ -284,12 +289,12 @@ def commandDisks(message):
     if num == 0:
         text += "No disks found!?"
 
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
-def commandIp(message, ver):
+def commandIp(message, ver, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
 
     ifaces = netifaces.interfaces()
@@ -316,7 +321,7 @@ def commandIp(message, ver):
 
     if count == 0:
         text += "None found"
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
 def _getServices():
     #TBD make selection in configfile
@@ -342,10 +347,10 @@ def _getServices():
             dontknow.append(m.group("service"))
     return (active,inactive,dontknow)
     
-def commandServices(message):
+def commandServices(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
-        sendAuthMessage(chat_id)
+        sendAuthMessage(chat_id, console)
         return
     
     (active,_,dontknow) = _getServices()
@@ -356,9 +361,9 @@ def commandServices(message):
 
     # inactive ones are usually many and not too interresting
 
-    sendTextMessage(chat_id, text)
+    sendTextMessage(chat_id, text, console)
 
-def alarms():
+def alarms(console):
     global last_notification
     now = time.time()
     global last_ports
@@ -445,4 +450,4 @@ def alarms():
         if should_send:
             last_notification = now
             for id in storage.allUsers():
-                sendTextMessage(id, text)
+                sendTextMessage(id, text, console)
