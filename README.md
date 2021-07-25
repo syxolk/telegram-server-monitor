@@ -15,11 +15,13 @@ Monitoring service writen in Python3 to be hosted on your own server.
 # Create a special user for the bot
 sudo adduser telegram --gecos "" --disabled-password
 
-# Install Python 3 and its package manager
-sudo apt-get install python3 python3-pip
+# Install required packages with the package manager
+sudo apt install python3-psutil python3-requests python3-netifaces
 
-# Install Python Requests and PSUtil Library
-sudo python3 -m pip install requests psutil --upgrade
+# OR install Python 3 and dependecies with pip
+# use this only if you have problems with the commandline above...
+#sudo apt install python3 python3-pip
+#sudo python3 -m pip install requests psutil netifaces --upgrade
 ```
 
 **Download and install Telegram Server Monitor**
@@ -36,3 +38,15 @@ cp config.template.py config.py
 # Edit the config file with your favorite editor
 vim config.py
 ```
+
+## Usage
+Start the program with
+```
+python3 daemon.py
+```
+
+To keep your new telegram bot running when you logout you might want to checkout [tmux](https://tmux.github.io/), which is probably shipped with your favorite distribution.
+
+## Improve network-ports info
+To get process details on the open ports please copy the file `50-netstat` to `/etc/sudoers.d/50-netstat`
+
