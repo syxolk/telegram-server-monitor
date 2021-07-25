@@ -47,3 +47,6 @@ python3 daemon.py
 
 To keep your new telegram bot running when you logout you might want to checkout [tmux](https://tmux.github.io/), which is probably shipped with your favorite distribution.
 
+## Improve network-ports info
+To get process details on the open ports please copy the file `50-netstat` to `/etc/sudoers.d/50-netstat`
+

@@ -8,6 +8,7 @@ import socket
 import netifaces
 import subprocess
 import re
+import os
 
 last_notification = 0
 last_ports = []
@@ -217,26 +218,103 @@ def prettyPrintFamily(f):
         if str(f) == type: return families[type]
     return str(f)
 
+_netstat_headline = ["Proto", "Recv-Q", "Send-Q", "Local Address", "Foreign Address", "State", "PID/Program name"]
+def _netstat_decode_headline(line):
+    col = {}
+    try:
+        last = None
+        for h in _netstat_headline:
+            i = line.index(h)
+            col[h] = [i, None]
+            if last:
+                col[last][1] = i
+            last = h
+
+    except ValueError:
+        col = {}
+    return col
+
+def _netstat_get_field(field, line, col):
+    return line[col[field][0]:col[field][1]].strip()
+
+def _netstat_decode_line(line, col):
+    ret = {}
+    for h in _netstat_headline:
+        field = _netstat_get_field(h,line,col)
+        if h == "Local Address" or h == "Foreign Address":
+            # Split port from address in a seperate field
+            ret[h] = ":".join(field.split(":")[:-1])
+            if ret[h] == "0.0.0.0" or ret[h] == "::":
+                ret[h] = "all interfaces"
+            ret[h.replace("Address","Port")] = ":".join(field.split(":")[-1:])
+        elif h == "PID/Program name":
+            ret["PID"] = field.split("/")[0]
+            ret["Program name"] = "/".join(field.split("/")[1:])
+            if len(ret["Program name"]) == 0:
+                ret["Program name"] = ret["PID"]
+        else:
+            ret[h] = field
+    return ret
+
+def _getPorts():
+
+    sudo_enabled = os.path.isfile("/etc/sudoers.d/50-netstat")
+    text = []
+    try:
+        if sudo_enabled:
+            netstatCMD = ["/usr/bin/sudo", "--non-interactive", "/usr/bin/netstat", "--udp", "--raw", "--udplite", "--numeric", "--tcp", "--listening", "--program"]
+
+            with subprocess.Popen(netstatCMD, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE) as p:
+                lines = p.stdout.readlines()
+            col = {}
+            text_lines = []
+            if len(lines) == 0:
+                text += "Calling of netstat or sudo failed"
+            for l in lines:
+                l = l.decode()
+                if len(col) == 0:
+                    col = _netstat_decode_headline(l)
+                else:
+                    fields = _netstat_decode_line(l,col)
+                    text_lines.append(fields)
+
+            text_lines = sorted(text_lines, key=lambda k: int(k['Local Port']))
+            text = [f"{fields['Local Port']} ({fields['Proto']}, {fields['Local Address']}, {fields['Program name']})" for fields in text_lines]
+        else:
+            for c in sorted(psutil.net_connections(), key=lambda i:i.laddr[1]):
+                if c.status == "LISTEN":
+                    interface = c.laddr[0]
+                    if interface == "0.0.0.0" or interface == "::":
+                        interface = "all interfaces"
+                    else:
+                        interface = "only on {0}".format(interface)
+                    if c.pid:
+                        p = psutil.Process(c.pid)
+                        cmd_name = p.name()
+                        cmd_full = " ".join(p.cmdline())
+                    else:
+                        cmd_name = "---"
+                        cmd_full = None
+                    t = "* {0} ({1}, {2}, {3})".format(c.laddr[1], prettyPrintFamily(c.family), interface, cmd_name)
+                    if cmd_full:
+                        t += f"\n  cmd: {cmd_full}"
+                    text.append(t)
+
+    except BaseException as be:
+        text.append("Getting port info failed: {0}".format(be))
+    return text
+
 def commandPorts(message, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
         sendAuthMessage(chat_id, console)
         return
 
-    text = " ** Listening Ports **\n"
-    try:
-        for c in sorted(psutil.net_connections(), key=lambda i:i.laddr[1]):
-            if c.status == "LISTEN":
-                interface = c.laddr[0]
-                if interface == "0.0.0.0" or interface == "::":
-                    interface = "all interfaces"
-                else:
-                    interface = "only on {0}".format(interface)
-                text += "* {0} ({1}, {2})\n".format(c.laddr[1], prettyPrintFamily(c.family), interface)
 
-    except BaseException as be:
-        text += "Getting port info failed: {0}".format(be)
+    text = " ** Listening Ports **\n\n"
 
+    entries = _getPorts()
+    text += "* " + "\n* ".join(entries)
     sendTextMessage(chat_id, text, console)
 
 def commandProcesses(message, console):
@@ -386,8 +464,7 @@ def alarms(console):
             text += "RAM: {0} %\n".format(ram)
             should_send = True
 
-        ports = ["{0} ({1})".format(c.laddr[1],prettyPrintFamily(c.family))
-                 for c in psutil.net_connections() if c.status == "LISTEN"]
+        ports = _getPorts()
         port_diff = list(set(last_ports).symmetric_difference(ports))
         if len(port_diff) > 0:
             should_send = True
