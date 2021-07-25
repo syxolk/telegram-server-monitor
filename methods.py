@@ -336,7 +336,7 @@ def commandProcesses(message, parameter, console):
         text += "Processes: {}\n".format(len(procs))
         text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
         text += "FDs used: {}/{} ({:.1f}%)\n".format(fds[0], fds[2], fd_usage)
-        text += "Worst Process: {} ({}) - {} threads\n{}".format(worst.name(), worst.pid, worst.num_threads(), worst.cmdline())
+        text += "Worst Process: {} ({}) - {} threads".format(worst.name(), worst.pid, worst.num_threads())
 
         if parameter:
             found = False
