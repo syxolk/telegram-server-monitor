@@ -245,7 +245,7 @@ def _netstat_decode_line(line, col):
             # Split port from address in a seperate field
             ret[h] = ":".join(field.split(":")[:-1])
             if ret[h] == "0.0.0.0" or ret[h] == "::":
-                ret[h] = "all interfaces"
+                ret[h] = "all IPs"
             ret[h.replace("Address","Port")] = ":".join(field.split(":")[-1:])
         elif h == "PID/Program name":
             ret["PID"] = field.split("/")[0]
@@ -285,7 +285,7 @@ def _getPorts():
                 if c.status == "LISTEN":
                     interface = c.laddr[0]
                     if interface == "0.0.0.0" or interface == "::":
-                        interface = "all interfaces"
+                        interface = "all IPs"
                     else:
                         interface = "only on {0}".format(interface)
                     if c.pid:
