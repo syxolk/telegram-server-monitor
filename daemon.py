@@ -25,7 +25,7 @@ if args.console:
     print("Running in console mode")
 
 if not args.console:
-    methods.startupMessage()
+    methods.startupMessage(args.console)
     atexit.register(methods.shutdownMessage)
 
 server_retry = config.SERVER_RETRY_TIMEOUT
