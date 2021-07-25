@@ -66,7 +66,7 @@ def processCommandMessage(message, console):
     elif command == "/ports":
         commandPorts(message, console)
     elif command == "/procs" or command == "/proc":
-        commandProcesses(message, console)
+        commandProcesses(message, parameter, console)
     elif command == "/ip":
         commandIp(message, 6, console)
     elif command == "/ip4":
@@ -146,14 +146,14 @@ def commandHelp(message, console):
     sendTextMessage(chat_id, config.NAME + """
 Monitor your server and query usage and network information.
 
-/usage    - CPU and Memory information
-/users    - Active users
-/disks    - Disk usage
-/ports    - Open network ports
-/procs    - Info about processes
-/ip       - list all IPv6 IPs
-/ip4      - list all IPv4 IPs
-/services - list all system services
+/usage       - CPU and Memory information
+/users       - Active users
+/disks       - Disk usage
+/ports       - Open network ports
+/procs [PID] - Info about processes or PID
+/ip          - list all IPv6 IPs
+/ip4         - list all IPv4 IPs
+/services    - list all system services
 
 You do not like me anymore?
 /stop - Sign off from the monitoring service
@@ -279,7 +279,7 @@ def _getPorts():
                     text_lines.append(fields)
 
             text_lines = sorted(text_lines, key=lambda k: int(k['Local Port']))
-            text = [f"{fields['Local Port']} ({fields['Proto']}, {fields['Local Address']}, {fields['Program name']})" for fields in text_lines]
+            text = [f"{fields['Local Port']} ({fields['Proto']}, {fields['Local Address']}, {fields['PID']}/{fields['Program name']})" for fields in text_lines]
         else:
             for c in sorted(psutil.net_connections(), key=lambda i:i.laddr[1]):
                 if c.status == "LISTEN":
@@ -317,7 +317,7 @@ def commandPorts(message, console):
     text += "* " + "\n* ".join(entries)
     sendTextMessage(chat_id, text, console)
 
-def commandProcesses(message, console):
+def commandProcesses(message, parameter, console):
     chat_id = message["chat"]["id"]
     if not storage.isRegisteredUser(chat_id):
         sendAuthMessage(chat_id, console)
@@ -326,17 +326,34 @@ def commandProcesses(message, console):
     text = " ** Process info **\n"
     try:
         # just query once for consistency
-        procs = [ (p.num_threads(),p.pid,p.name(),p.cmdline()) for p in psutil.process_iter()]
+        procs = list(psutil.process_iter())
         max_pids = int(open("/proc/sys/kernel/pid_max").read())
-        pid_sum = sum([ p[0] for p in procs])
-        worst = sorted(procs, reverse = True)[0]
+        pid_sum = sum([ p.num_threads() for p in procs])
+        worst = sorted(procs, reverse = True, key=lambda x:x.num_threads())[0]
         pid_usage = (pid_sum*100/max_pids)
         fds = [int(n) for n in open("/proc/sys/fs/file-nr").read().strip().split('\t')]
         fd_usage = (fds[0]*100/fds[2])
         text += "Processes: {}\n".format(len(procs))
         text += "PIDs used: {}/{} ({:.1f}%)\n".format(pid_sum, max_pids, pid_usage)
         text += "FDs used: {}/{} ({:.1f}%)\n".format(fds[0], fds[2], fd_usage)
-        text += "Worst Process: {} ({}) - {} threads\n{}".format(worst[2], worst[1], worst[0], worst[3])
+        text += "Worst Process: {} ({}) - {} threads\n{}".format(worst.name(), worst.pid, worst.num_threads(), worst.cmdline())
+
+        if parameter:
+            found = False
+            for p in procs:
+                if f"{p.pid}" == parameter.strip():
+                    text += f"\n\nDetails for PID {parameter}:\n"
+                    text += f"cmd: {' '.join(p.cmdline())}\n"
+                    text += f"owner: {p.username()}\n"
+                    text += f"cpu: {p.cpu_percent()}%\n"
+                    text += f"memory: {p.memory_full_info()}\n"
+                    text += f"connections: \n"
+                    for c in p.connections():
+                        text += f"  * {c.raddr.ip}:{c.raddr.port} {c.status}\n"
+                    found = True
+            if not found:
+                text += f"\nSorry I didn't find a process with PID: {parameter}"
+
 
     except BaseException as be:
         text += "Getting process info failed: {0}".format(be)
